@@ -8,6 +8,7 @@
 
 """Remove gene to a wgMLST database"""
 
+
 import sys
 import os
 import argparse
@@ -28,42 +29,41 @@ command.add_argument('database', \
     type=argparse.FileType("r"), \
     help='Sqlite database of the wgMLST')
 command.add_argument('-v', '--version', action='version', version="pyMLST: "+__version__)
-    
+
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     database = args.database
-    
+
     ##list genes to removed
     genes = []
     if args.lists is not None:
-        for line in args.lists.readlines():
-            genes.append(line.rstrip("\n"))
+        genes.extend(line.rstrip("\n") for line in args.lists.readlines())
     if args.gene is not None:
         genes.extend(args.gene.split(" "))
-    if len(genes) == 0:
+    if not genes:
         raise Exception("No gene to removed found.\n")
     genes = set(genes)
-        
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
 
         ## index for old database
         sql.index_database(cursor)
-        
+
         for gene in genes:
-            sys.stderr.write(gene + "     ")
+            sys.stderr.write(f'{gene}     ')
 
             ## Search seq ids
             cursor.execute('''SELECT seqid FROM mlst WHERE gene=?''', (gene,))
             seqids = cursor.fetchall()
             if len(seqids) == 0:
                 raise Exception("Gene name not found in database\n" + gene)
-            
+
             ##remove sample
             cursor.execute('''DELETE FROM mlst WHERE gene=? ''', (gene,))
-            
+
             ##remove seqs if no other gene have this seq
             for seqid in seqids:
                 cursor.execute('''DELETE from sequences as s

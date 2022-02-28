@@ -37,4 +37,4 @@ def get_duplicate_gene(cursor):
                       )
                       AND m.souche != ?
                       GROUP BY gene''', (ref,))
-    return set([row[0] for row in cursor.fetchall()])
+    return {row[0] for row in cursor.fetchall()}

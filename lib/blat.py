@@ -19,9 +19,7 @@ def run_blat(path, genome, tmpfile, tmpout, identity, coverage):
     command = [path+blat_exe, '-maxIntron=20', '-fine', '-minIdentity='+str(identity*100),\
                genome.name, tmpfile.name, tmpout.name]
     proc = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=sys.stderr)
-    error = ""
-    for line in proc.stderr:
-        error += line.decode()
+    error = "".join(line.decode() for line in proc.stderr)
     if error != "":
         sys.stderr.write("Error during running BLAT\n")
         raise Exception(error)
@@ -34,7 +32,7 @@ def run_blat(path, genome, tmpfile, tmpout, identity, coverage):
         psl = Psl(line)
         if psl.coverage >=coverage and psl.coverage <= 1:
             genes.setdefault(psl.geneId(),[]).append(psl)
-    if len(genes) == 0:
+    if not genes:
         raise Exception("No path found for the coregenome")
     return genes
 

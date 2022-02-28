@@ -102,12 +102,12 @@ def get_mlst(cursor, valid_shema):
     return mlst
 
 if __name__=='__main__':
-    """Performed job on execution script""" 
+    """Performed job on execution script"""
     args = command.parse_args()
     output = args.output
     database = args.database
     export = args.export
-    
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
@@ -123,7 +123,7 @@ if __name__=='__main__':
 
         ## allgene
         allgene = get_all_gene(cursor)
-        
+
         ## duplicate gene
         dupli = sql.get_duplicate_gene(cursor)
 
@@ -135,39 +135,37 @@ if __name__=='__main__':
 
         ##filter coregene that is not sufficient mincover or keep only different or return inverse
         valid_shema = []
-        
+
         ## Test different case for validation
         for g in allgene:  
             valid = []
-            if args.keep is True:
-                if diff.get(g, 0) > 1:
-                    valid.append(True)
-                else:
-                    valid.append(False)
-            else:
+            if (
+                args.keep is True
+                and diff.get(g, 0) > 1
+                or args.keep is not True
+            ):
                 valid.append(True)
+            else:
+                valid.append(False)
             if count.get(g, 0) >= args.mincover:
                 valid.append(True)
             else:
                 valid.append(False)
-            if args.duplicate:
-                if g in dupli:
-                    valid.append(False)
-                else:
-                 valid.append(True)   
+            if args.duplicate and g in dupli:
+                valid.append(False)
             else:
                 valid.append(True)
-            if args.inverse is False:
-                if sum(valid) == 3:
-                    valid_shema.append(g)
-            else:
-                if sum(valid) < 3:
-                    valid_shema.append(g)
-
+            if (
+                args.inverse is False
+                and sum(valid) == 3
+                or args.inverse is not False
+                and sum(valid) < 3
+            ):
+                valid_shema.append(g)
         ##report
         sys.stderr.write("Number of coregene used : " + str(len(valid_shema)) + \
                          "/" + str(len(allgene)) + "\n")
-        
+
         ##export different case with choices
         if export == "strain":
             if args.count is False:
@@ -198,8 +196,7 @@ if __name__=='__main__':
             for g in valid_shema:
                 towrite = [g]
                 mlstg= mlst.get(g, {})
-                for s in strains:
-                    towrite.append(mlstg.get(s, ""))
+                towrite.extend(mlstg.get(s, "") for s in strains)
                 output.write("\t".join(towrite) + "\n")
         elif export == "grapetree":
             mlst = get_mlst(cursor, valid_shema)
@@ -219,7 +216,7 @@ if __name__=='__main__':
             output.write("Coregenes\t"+str(len(allgene))+"\n")
             output.write("Sequences\t"+str(get_number_sequences(cursor))+"\n")
         else:
-            raise Exception("This export format is not supported: " + export)
+            raise Exception(f"This export format is not supported: {export}")
     except Exception:
         db.rollback()
         raise

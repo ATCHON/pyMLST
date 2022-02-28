@@ -40,14 +40,14 @@ class Psl:
         return self.pslelement[9]
 
     def getSequence(self, seq):
-        if self.strand =="+":
-            sequence = seq.seq[self.start:self.end]
-        else:
-            sequence = seq.seq[self.start:self.end].reverse_complement()
         # ##Verify sequence correct
         # if len(sequence) != (self.end-self.start):
         #     raise Exception("Gene " + self.geneId() + " incomplete\n")
-        return sequence
+        return (
+            seq.seq[self.start : self.end]
+            if self.strand == "+"
+            else seq.seq[self.start : self.end].reverse_complement()
+        )
 
     def searchCorrect(self):
         if int(self.pslelement[11]) != 0:
@@ -75,7 +75,7 @@ class Psl:
         elif prot.endswith("*") is False:
             return self.__searchCDS(seq, False, True, windows, 0)
         else:
-            raise Exception("A problem of start/stop  for gene " + self.geneId())
+            raise Exception(f"A problem of start/stop  for gene {self.geneId()}")
 
     def searchPartialCDS(self, seq, coverage):
         ##modifs start and stop not create
@@ -89,7 +89,7 @@ class Psl:
             diff = self.rtotal - self.rend
             return self.__searchCDS(seq, False, True, windows, diff)
         else:
-            raise Exception("A problem of start/stop for gene " + self.geneId())
+            raise Exception(f"A problem of start/stop for gene {self.geneId()}")
     
     def __searchCDS(self, seq, start, stop, windows, diff):
         ##correct windows/diff multiple of 3
@@ -131,27 +131,23 @@ class Psl:
                     return True
                 else:
                     return False
-        ##modifs end
         elif stop:
             ##modulo = (self.end-self.start)%3
             if self.strand == "+":
                 theoEnd = self.__getTheoricEnd(diff)
                 val = [i for i in range(theoEnd-windows, theoEnd+windows, 3) \
                        if testCDS(seq.seq[self.start:i], False)]
-                if len(val) == 1:
-                    self.end = val[0]
-                    return True
-                else:
+                if len(val) != 1:
                     return False
+                self.end = val[0]
             else:
                 theoStart = self.__getTheoricStart(diff)
                 val = [i for i in range(theoStart+windows, theoStart-windows, -3) \
                        if testCDS(seq.seq[i:self.end], True)]
-                if len(val) == 1:
-                    self.start = val[0]
-                    return True
-                else:
+                if len(val) != 1:
                     return False
+                self.start = val[0]
+            return True
 
     def __getTheoricStart(self, diff):
         modulo = (self.end-self.start)%3
@@ -167,8 +163,7 @@ class Psl:
             if self.strand == "+":
                 if abs(abs(self.end - v) - self.rtotal) < abs(abs(self.end - best) - self.rtotal):
                     best = v
-            else:
-                if abs(abs(v - self.start) - self.rtotal) < abs(abs(best - self.start) - self.rtotal):
-                    best = v
+            elif abs(abs(v - self.start) - self.rtotal) < abs(abs(best - self.start) - self.rtotal):
+                best = v
         return best
 

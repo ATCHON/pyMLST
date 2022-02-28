@@ -60,9 +60,9 @@ def run_mafft(path, tmpfile):
         elif ids is not None:
             seq += line.rstrip("\n")
         else:
-            raise Exception("Problem during run mafft" + line)
+            raise Exception(f"Problem during run mafft{line}")
     if seq != "":
-        genes[int(ids)] = seq.upper() 
+        genes[int(ids)] = seq.upper()
     # print(genes)
     return genes
 
@@ -82,19 +82,16 @@ def get_sequences_for_gene(cursor, gene):
     return seqs
 
 def write_tmp_seqs(tmpfile, seqs):
-    tmp = open(tmpfile.name, 'w+t')
-    for s in seqs:
-        tmp.write(">"+str(s[0])+"\n"+s[2]+"\n")
-    tmp.close()
+    with open(tmpfile.name, 'w+t') as tmp:
+        for s in seqs:
+            tmp.write(f">{str(s[0])}" + "\n" + s[2] + "\n")
 
 def add_sequence_strain(seqs, strains, sequences):
     """Add sequence to multialign, take first gene in case of repeat"""
-    size = 0
-    if len(seqs)>0:
-        size = len(seqs[0][2])
+    size = len(seqs[0][2]) if len(seqs)>0 else 0
     for s in strains:
         seq = [i[2] for i in seqs if s in i[1]]
-        if len(seq) == 0:
+        if not seq:
             sequences.get(s).append('-' * size)
         elif len(seq) == 1:
             sequences.get(s).append(seq[0])
@@ -103,8 +100,8 @@ def add_sequence_strain(seqs, strains, sequences):
 
 
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     database = args.database
     output = args.output
     path = args.path.rstrip("/")+"/"
@@ -113,7 +110,7 @@ if __name__=='__main__':
 
     tmpfile = tempfile.NamedTemporaryFile(mode='w+t', suffix='.fasta', delete=False)
     tmpfile.close()
-    
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
@@ -121,7 +118,7 @@ if __name__=='__main__':
 
         ##index old database
         sql.index_database(cursor)
-        
+
         ##Minimun number of strain
         cursor.execute('''SELECT DISTINCT souche FROM mlst WHERE souche!=?''', (sql.ref,))
         strains = [i[0] for i in cursor.fetchall()]
@@ -145,40 +142,36 @@ if __name__=='__main__':
             for g in coregene:
                 seqs = get_sequences_for_gene(cursor, g)
                 for seq in seqs:
-                    output.write(">"+ g + "|" + str(seq[0]) + " " \
-                                 + ";".join(seq[1]) + "\n")
+                    output.write(((f">{g}|{str(seq[0])} " + ";".join(seq[1])) + "\n"))
                     output.write(seq[2] + "\n")
         else:
             ## multialign
             ## search duplicate
             dupli = sql.get_duplicate_gene(cursor)
-            
+
             sequences = {s:[] for s in strains}
             for i,g in enumerate(coregene):
-                sys.stderr.write(str(i+1) + "/" + str(len(coregene)) + " | " + g + "     ")
+                sys.stderr.write(f'{str(i+1)}/{len(coregene)} | {g}     ')
                 ##geneid = get_geneids(cursor, g)
                 if g in dupli:
                     sys.stderr.write("No: Repeat gene\n")
                     continue
                 seqs = get_sequences_for_gene(cursor, g)
-                size = set()
-                for seq in seqs:
-                    size.add(len(seq[2]))
+                size = {len(seq[2]) for seq in seqs}
                 if len(size) == 1 and args.realign is False:
                     sys.stderr.write("Direct")
-                    add_sequence_strain(seqs, strains, sequences)
                 else:
                     sys.stderr.write("Align")
                     write_tmp_seqs(tmpfile, seqs)
                     corrseqs = run_mafft(path, tmpfile)
                     for seq in seqs:
                         seq[2] = corrseqs.get(seq[0])
-                    add_sequence_strain(seqs, strains, sequences)
+                add_sequence_strain(seqs, strains, sequences)
                 sys.stderr.write("\n")
 
             ##output align result
             for s in strains:
-                output.write('>'+ s + "\n")
+                output.write(f'>{s}' + "\n")
                 output.write("\n".join(sequences.get(s)) + "\n")
     except Exception:
         db.rollback()

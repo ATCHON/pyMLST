@@ -48,7 +48,7 @@ def create_coregene(cursor, tmpfile):
                       WHERE mlst.souche = ?''', (sql.ref,))
     coregenes = []
     for row in cursor.fetchall():
-        tmpfile.write('>' + row[0] + "\n" + row[1] + "\n")
+        tmpfile.write(f'>{row[0]}' + "\n" + row[1] + "\n")
         coregenes.append(row[0])
     return coregenes
     
@@ -60,14 +60,11 @@ def insert_sequence(cursor, sequence):
         return cursor.fetchone()[0]
 
 def read_genome(genome):
-    seqs = {}
-    for seq in SeqIO.parse(genome, 'fasta'):
-        seqs[seq.id] = seq
-    return seqs
+    return {seq.id: seq for seq in SeqIO.parse(genome, 'fasta')}
     
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     database = args.database
     genome = args.genome
     if args.identity<0 or args.identity > 1:
@@ -81,7 +78,7 @@ if __name__=='__main__':
         raise Exception("Strain name must not contains special ';'\n")
 
     tmpfile, tmpout = blat.blat_tmp()
-    
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
@@ -94,7 +91,7 @@ if __name__=='__main__':
         cursor.execute('''SELECT DISTINCT souche FROM mlst WHERE souche=?''', (name,))
         if cursor.fetchone() is not None:
             raise Exception("Strain is already present in database:\n"+name)
-        
+
         ##read coregene
         coregenes = create_coregene(cursor, tmpfile)
         tmpfile.close()
@@ -102,8 +99,8 @@ if __name__=='__main__':
         ##BLAT analysis
         sys.stderr.write("Search coregene with BLAT\n")
         genes = blat.run_blat(path, genome, tmpfile, tmpout, args.identity, args.coverage)
-        sys.stderr.write("Finish run BLAT, found " + str(len(genes)) + " genes\n")
-        
+        sys.stderr.write(f"Finish run BLAT, found {len(genes)}" + " genes\n")
+
         ##add sequence MLST
         seqs = read_genome(genome)
         bad = 0
@@ -113,35 +110,35 @@ if __name__=='__main__':
             for gene in genes.get(coregene):
                 seq = seqs.get(gene.chro, None)
                 if seq is None:
-                    raise Exception("Chromosome ID not found " + gene.chro)
+                    raise Exception(f"Chromosome ID not found {gene.chro}")
 
                 ##Correct coverage
                 if gene.coverage != 1:
                     if gene.searchPartialCDS(seq, args.coverage) is False:
-                        sys.stderr.write("Gene " + gene.geneId() + " partial: removed\n")
+                        sys.stderr.write(f"Gene {gene.geneId()}" + " partial: removed\n")
                         bad += 1
                         continue
                     else:
-                        sys.stderr.write("Gene " + gene.geneId() + " fill: added\n")
+                        sys.stderr.write(f"Gene {gene.geneId()}" + " fill: added\n")
 
                 ##Verify CDS
                 if psl.testCDS(gene.getSequence(seq), False) is False:
                     if gene.searchCorrectCDS(seq, args.coverage) is False:
-                        sys.stderr.write("Gene " + gene.geneId() + " not correct: removed\n")
+                        sys.stderr.write(f"Gene {gene.geneId()}" + " not correct: removed\n")
                         bad += 1
                         continue
                     else:
-                        sys.stderr.write("Gene " + gene.geneId() + " correct: added\n")
- 
+                        sys.stderr.write(f"Gene {gene.geneId()}" + " correct: added\n")
+
                 ##add sequence and MLST
                 sequence = gene.getSequence(seq)
-                
+
                 ##Insert data in database
                 seqid = insert_sequence(cursor, str(sequence))
                 sql.add_mlst(cursor2, name, gene.geneId(), seqid)
 
         db.commit()
-        sys.stderr.write("Add " + str(len(genes)-bad) + " new MLST gene to database\n")
+        sys.stderr.write(f"Add {str(len(genes)-bad)}" + " new MLST gene to database\n")
         sys.stderr.write("FINISH\n")
     except Exception:
         db.rollback()

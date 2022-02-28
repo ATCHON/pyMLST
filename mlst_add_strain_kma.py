@@ -54,10 +54,7 @@ def insert_sequence(cursor, sequence):
         return cursor.fetchone()[0]
 
 def read_fasta(fasta):
-    seqs = {}
-    for seq in SeqIO.parse(fasta, 'fasta'):
-        seqs[seq.id] = seq.seq
-    return seqs
+    return {seq.id: seq.seq for seq in SeqIO.parse(fasta, 'fasta')}
 
 def read_result(kma, cover, ident, reads):
     kmas = []
@@ -78,8 +75,8 @@ def read_result(kma, cover, ident, reads):
     return kmas        
     
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     database = args.database
     kma = args.kma
     if args.identity<0 or args.identity > 1:
@@ -98,7 +95,7 @@ if __name__=='__main__':
     if os.path.exists(fasta) is False:
         raise Exception("Fsa file corresponding to kma results not found\n" + kma.name)
     #tmpfile, tmpout = blat.blat_tmp()
-    
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
@@ -111,7 +108,7 @@ if __name__=='__main__':
         cursor.execute('''SELECT DISTINCT souche FROM mlst WHERE souche=?''', (name,))
         if cursor.fetchone() is not None:
             raise Exception("Strain is already present in database:\n"+name)
-        
+
         # ##read coregene
         coregenes = get_all_gene(cursor)
         # tmpfile.close()
@@ -119,17 +116,17 @@ if __name__=='__main__':
         ##read results
         kma_res = read_result(kma, args.coverage, args.identity, args.depth)
         seqs = read_fasta(fasta)
-        
+
         ##add sequence MLST
         valid = 0
         minus = 0
         frame = 0
         duplicate = set() ##to prevent add sames alleles two times
-        
+
         for res in kma_res:
             seq = seqs.get(res)
             if seq is None:
-                raise Exception(res + " not found in the fasta files")
+                raise Exception(f'{res} not found in the fasta files')
 
             ## test minus
             b = (seq.count('a') + seq.count('t') + seq.count('c') + \
@@ -146,22 +143,22 @@ if __name__=='__main__':
                 frame += 1
                 sys.stderr.write(res + " Remove bad CDS\n")
                 continue
- 
+
             ##add sequence and MLST
             gene = res.split("_")[0]
             if gene not in coregenes:
-                sys.stderr.write("WARNINGS: gene " + gene + " not present in database\n")
+                sys.stderr.write(f"WARNINGS: gene {gene}" + " not present in database\n")
                 continue
             valid +=1
             seqid = insert_sequence(cursor, str(seq))
             if str(seqid)+res.split("_")[0] not in duplicate:
                 sql.add_mlst(cursor2, name, res.split("_")[0], seqid)
                 duplicate.add(str(seqid)+res.split("_")[0])
-            
+
         db.commit()
-        sys.stderr.write("Add " + str(valid) + " new MLST genes to database\n")
-        sys.stderr.write("Remove " + str(minus) + " genes with uncertain bases\n")
-        sys.stderr.write("Remove " + str(frame) + " genes with bad CDS\n")  
+        sys.stderr.write(f"Add {valid}" + " new MLST genes to database\n")
+        sys.stderr.write(f"Remove {minus}" + " genes with uncertain bases\n")
+        sys.stderr.write(f"Remove {frame}" + " genes with bad CDS\n")
         sys.stderr.write("FINISH\n")
     except Exception:
         db.rollback()

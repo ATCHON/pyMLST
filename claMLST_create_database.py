@@ -8,6 +8,7 @@
 
 """Create a classical MLST database"""
 
+
 import sys
 import argparse
 import sqlite3
@@ -29,12 +30,12 @@ command.add_argument('alleles', nargs='+', \
 command.add_argument('-v', '--version', action='version', version="pyMLST: "+__version__)
 
 if __name__=='__main__':
-    """Performed job on execution script""" 
+    """Performed job on execution script"""
     args = command.parse_args()
     database = args.database
     name = "ref"
     database.close()
-    
+
     ##Verify sheme list with fasta files   
     header = args.sheme.readline().rstrip("\n").split("\t")
     if len(header) != len(args.alleles)+1:
@@ -45,9 +46,9 @@ if __name__=='__main__':
         name = f.name.split("/")[-1]
         name = name[:name.rfind(".")]
         if name not in header:
-            raise Exception("Gene " + name + " not found in sheme\n"+ " ".join(header))
+            raise Exception(f"Gene {name}" + " not found in sheme\n" + " ".join(header))
         fastas[name]=f
-        
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
@@ -75,14 +76,18 @@ if __name__=='__main__':
                 cursor.execute('''INSERT INTO sequences(sequence,gene,allele)
                               VALUES(?,?,?)''', (str(seq.seq).upper(),g,allele))
                 alleles.get(g).add(allele)
-        
+
         ##load MLST sheme
         for line in args.sheme:
             h = line.rstrip("\n").split("\t")
             st = int(h[0])
             for g,a in zip(header[1:],h[1:]):
                 if int(a) not in alleles.get(g):
-                    sys.stderr.write("Unable to find the allele number "+a+" for gene "+g+ "; replace by 0\n")
+                    sys.stderr.write(
+                        f"Unable to find the allele number {a} for gene {g}"
+                        + "; replace by 0\n"
+                    )
+
                     #raise Exception("Unable to find the allele number "+a+" for gene "+g+ "\n" )
                     cursor2.execute('''INSERT INTO mlst(st, gene, allele)
                               VALUES(?,?,?)''', (st, g, 0))

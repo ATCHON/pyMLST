@@ -51,7 +51,7 @@ def create_coregene(cursor, tmpfile):
     coregenes = []
     for row in all_rows:
         cursor.execute('''SELECT sequence,gene FROM sequences WHERE allele=? and gene=?''', (1,row[0]))
-        tmpfile.write('>' + row[0] + "\n" + cursor.fetchone()[0] + "\n")
+        tmpfile.write(f'>{row[0]}' + "\n" + cursor.fetchone()[0] + "\n")
         coregenes.append(row[0])
     return coregenes
 
@@ -64,26 +64,23 @@ def insert_sequence(cursor, sequence):
         return cursor.fetchone()[0]
 
 def read_genome(genome):
-    seqs = {}
-    for seq in SeqIO.parse(genome, 'fasta'):
-        seqs[seq.id] = seq
-    return seqs
+    return {seq.id: seq for seq in SeqIO.parse(genome, 'fasta')}
     
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     database = args.database
     genome = args.genome
     if args.identity<0 or args.identity > 1:
         raise Exception("Identity must be between 0 to 1")
     path = blat.test_blat_exe(args.path)
     tmpfile, tmpout = blat.blat_tmp()
-    
+
     try:
         db = sqlite3.connect(database.name)
         cursor = db.cursor()
         cursor2 = db.cursor()
-        
+
         ##read coregene
         coregenes = create_coregene(cursor, tmpfile)
         tmpfile.close()
@@ -91,8 +88,8 @@ if __name__=='__main__':
         ##BLAT analysis
         sys.stderr.write("Search coregene with BLAT\n")
         genes = blat.run_blat(path, genome, tmpfile, tmpout, args.identity, args.coverage)
-        sys.stderr.write("Finish run BLAT, found " + str(len(genes)) + " genes\n")
-        
+        sys.stderr.write(f"Finish run BLAT, found {len(genes)}" + " genes\n")
+
         ##Search sequence MLST
         seqs = read_genome(genome)
         sys.stderr.write("Search allele gene to database\n")
@@ -106,25 +103,25 @@ if __name__=='__main__':
             for gene in genes.get(coregene):
                 seq = seqs.get(gene.chro, None)
                 if seq is None:
-                    raise Exception("Chromosome ID not found " + gene.chro)
+                    raise Exception(f"Chromosome ID not found {gene.chro}")
 
                 ##verify coverage and correct
                 if gene.coverage !=1:
                     gene.searchCorrect()
-                    sys.stderr.write("Gene " + gene.geneId() + " fill: added\n")
+                    sys.stderr.write(f"Gene {gene.geneId()}" + " fill: added\n")
 
-                    
+
                 ##get sequence
                 sequence = str(gene.getSequence(seq)).upper()
 
                 ##verify complet sequence
                 if len(sequence) != (gene.end-gene.start):
-                    sys.stderr.write("Gene " + gene.geneId() + " removed\n")
+                    sys.stderr.write(f"Gene {gene.geneId()}" + " removed\n")
                     continue
 
                 ##write fasta file with coregene
                 if args.fasta is not None:
-                    args.fasta.write(">"+coregene+"\n")
+                    args.fasta.write(f">{coregene}" + "\n")
                     args.fasta.write(sequence+"\n")
 
                 ##search allele
@@ -143,14 +140,13 @@ if __name__=='__main__':
         ##if only know allele or not found
         ##Seach st
         st_val = []
-        if sum([len(i)==1 and i[0] != "new" for i in allele.values()]) == len(allele):
+        if sum(len(i) == 1 and i[0] != "new" for i in allele.values()) == len(
+            allele
+        ):
             tmp = None
             for s in st.values():
                 if s:
-                    if tmp is None:
-                        tmp = s
-                    else:
-                        tmp = tmp.intersection(s)
+                    tmp = s if tmp is None else tmp.intersection(s)
             st_val = list(tmp)
 
         ##print result

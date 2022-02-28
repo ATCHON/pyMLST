@@ -8,6 +8,7 @@
 
 """Search group of strains at a distance treshold"""
 
+
 import sys
 import os
 import argparse
@@ -31,13 +32,15 @@ command.add_argument('-e', '--export', nargs='?', \
 command.add_argument('distance', \
     type=argparse.FileType("r"), \
     help='Distance matrix from mlst_export_table with -e distance')
-command.add_argument('-v', '--version',
-    action='version', version="pyMLST: "+__version__)
+command.add_argument(
+    '-v', '--version', action='version', version=f"pyMLST: {__version__}"
+)
+
     
 
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     output = args.output
     export = args.export
     threshold = args.threshold
@@ -60,7 +63,7 @@ if __name__=='__main__':
         h = line.rstrip("\n").split("\t")
         samps.append(h[0])
         dists.append(h[1:])
-        
+
     if len(samps) != strains:
         raise Exception("The distance file seems not correctly formatted\n Number of strains "+ str(len(samps)) + " doesn't correspond to " + str(strains))
 
@@ -86,19 +89,19 @@ if __name__=='__main__':
             samps2.remove(n)
             inds.append(samps.index(n))
         grps.append(inds)
-    
+
     grps.sort(key=len,reverse=True)
 
     ##write result
     if export == "group":
         for i,g in enumerate(grps):
             #a = len(samps)*[0]
-            output.write("Group" + str(i))
+            output.write(f"Group{str(i)}")
             for n in g:
                 #a[n] = 1
-                output.write(" " + samps[n])
+                output.write(f" {samps[n]}")
             output.write("\n")
-            
+
     elif export == "count":
         output.write("Group\t" + "\t".join(samps) + "\n")
         for i,g in enumerate(grps):
@@ -110,12 +113,12 @@ if __name__=='__main__':
             output.write(str(i) + "\t" + "\t".join(map(str,a))+ "\n")
             #group.write("\n")
     else:
-       for i,g in enumerate(grps):
+        for i,g in enumerate(grps):
             #a = len(samps)*[0]
             #group.write("Group" + str(i))
             for n in g:
                 #a[n] = 1
-                output.write("Group" + str(i) + "\t" + samps[n] + "\n")
+                output.write(f"Group{str(i)}" + "\t" + samps[n] + "\n")
                 #group.write(" " + samps[n])
             #write_count(count, str(i) + "\t" + "\t".join(map(str,a))+ "\n")
             #group.write("\n")

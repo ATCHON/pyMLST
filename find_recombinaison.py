@@ -36,8 +36,8 @@ command.add_argument('-v', '--version', action='version', version="pyMLST: "+__v
 def compar_seqs(seqs):
     count = 0
     dim = len(seqs[0])
-    for j in range(0, len(seqs[0])):
-        d = set([s[j] for s in seqs])
+    for j in range(len(seqs[0])):
+        d = {s[j] for s in seqs}
         if '-' in d :
             d.remove('-')
         if len(d) > 1:
@@ -46,20 +46,20 @@ def compar_seqs(seqs):
 
     
 if __name__=='__main__':
-    """Performed job on execution script""" 
-    args = command.parse_args()    
+    """Performed job on execution script"""
+    args = command.parse_args()
     genes = [line.rstrip("\n") for line in args.genes]
-    sys.stderr.write("Number of genes to look at : " + str(len(genes)) + "\n")
+    sys.stderr.write(f"Number of genes to look at : {len(genes)}" + "\n")
     output = args.output
 
-    sequences = [[] for g in genes]
+    sequences = [[] for _ in genes]
     samples = []
 
     ##load sequences by gene
     indice = 0
     for line in args.alignment:
         line = line.rstrip("\n")
-        
+
         ##header
         if line.startswith(">"):
             indice = 0
@@ -69,15 +69,15 @@ if __name__=='__main__':
         ##check genes number correct
         if indice >= len(genes):
             raise Exception("The genes list seems not correspond to the alignment\n" + str(indice))
-        
+
         ##genes
         sequences[indice].append(line)
         indice += 1
 
-    ##check sequences are correctly align    
+    ##check sequences are correctly align
     for i,seqs in enumerate(sequences):
-        if len(set([len(s) for s in seqs])) > 1:
-            print(set([len(s) for s in seqs]))
+        if len({len(s) for s in seqs}) > 1:
+            print({len(s) for s in seqs})
             raise Exception("Following genes seems to be not align: " + genes[i])
 
     for i,seqs in enumerate(sequences):

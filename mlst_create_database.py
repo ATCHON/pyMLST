@@ -35,13 +35,13 @@ command.add_argument('-v', '--version', action='version', version="pyMLST: "+__v
 def update_duplicate(cursor, gene):
     cursor.execute('''SELECT id FROM sequences WHERE sequence=?''', (str(gene.seq).upper(),))
     seqid = cursor.fetchone()[0]
-    sys.stderr.write("Concatenate gene " + gene.id + "\n")
+    sys.stderr.write(f"Concatenate gene {gene.id}" + "\n")
     cursor.execute('''SELECT gene FROM mlst WHERE seqid=?''', (seqid,))
     othergene = cursor.fetchone()[0]
     cursor.execute('''UPDATE mlst SET gene = ? WHERE seqid = ?''', (othergene+";"+gene.id, seqid))
 
 def remove_duplicate(cursor, toremove):
-    sys.stderr.write("Remove duplicate sequence :" + str(len(toremove)) + "\n")
+    sys.stderr.write(f"Remove duplicate sequence :{len(toremove)}" + "\n")
     for seq in toremove:
         cursor.execute('''SELECT id FROM sequences WHERE sequence=?''', (seq,))
         seqid = cursor.fetchone()[0]
